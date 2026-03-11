@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>org.acme</groupId>
+    <artifactId>qosdk-jandex-bug</artifactId>
+    <version>1.0.0</version>
+
+    <properties>
+        <compiler-plugin.version>3.14.0</compiler-plugin.version>
+        <maven.compiler.release>21</maven.compiler.release>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <quarkus.platform.artifact-id>quarkus-bom</quarkus.platform.artifact-id>
+        <quarkus.platform.group-id>io.quarkus.platform</quarkus.platform.group-id>
+        <quarkus.platform.version>3.27.2</quarkus.platform.version>
+
+        <!-- Operator SDK -->
+        <quarkus.operator.sdk.group-id>io.quarkiverse.operatorsdk</quarkus.operator.sdk.group-id>
+        <quarkus.operator.sdk.version>7.2.3</quarkus.operator.sdk.version>
+
+        <!-- Strimzi version -->
+        <strimzi.version>0.47.0</strimzi.version>
+
+        <skipITs>true</skipITs>
+        <surefire-plugin.version>3.5.4</surefire-plugin.version>
+    </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>${quarkus.platform.group-id}</groupId>
+                <artifactId>${quarkus.platform.artifact-id}</artifactId>
+                <version>${quarkus.platform.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>${quarkus.operator.sdk.group-id}</groupId>
+                <artifactId>quarkus-operator-sdk-bom</artifactId>
+                <version>${quarkus.operator.sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <!-- Quarkus Operator SDK -->
+        <dependency>
+            <groupId>io.quarkiverse.operatorsdk</groupId>
+            <artifactId>quarkus-operator-sdk</artifactId>
+        </dependency>
+
+        <dependency>
+            <groupId>io.quarkiverse.operatorsdk</groupId>
+            <artifactId>quarkus-operator-sdk-bundle-generator</artifactId>
+        </dependency>
+
+        <!--
+            Strimzi API: does NOT ship its own META-INF/jandex.idx.
+            This is the dependency whose classes cannot be found in the
+            CombinedIndexBuildItem during the augmentation phase.
+        -->
+        <dependency>
+            <groupId>io.strimzi</groupId>
+            <artifactId>api</artifactId>
+            <version>${strimzi.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <resources>
+            <resource>
+                <directory>src/main/bundle</directory>
+                <targetPath>${project.build.directory}/bundle/esd-operator</targetPath>
+            </resource>
+        </resources>
+        <plugins>
+            <plugin>
+                <groupId>io.quarkus.platform</groupId>
+                <artifactId>quarkus-maven-plugin</artifactId>
+                <version>${quarkus.platform.version}</version>
+                <extensions>true</extensions>
+                <!--
+                    WORKAROUND: Define quarkus.index-dependency as system properties
+                    on the plugin rather than in application.properties.
+
+                    The bug: defining these in application.properties is silently
+                    ineffective because application.properties is not yet loaded
+                    when IndexDependencyBuildItem entries are collected during the
+                    early bootstrap augmentation phase.
+
+                    Uncommenting the <systemProperties> block below fixes the build.
+                    Removing it (and relying solely on application.properties) reproduces the bug.
+                -->
+                <!--
+                <configuration>
+                    <systemProperties>
+                        <quarkus.index-dependency.strimzi-api.group-id>io.strimzi</quarkus.index-dependency.strimzi-api.group-id>
+                        <quarkus.index-dependency.strimzi-api.artifact-id>api</quarkus.index-dependency.strimzi-api.artifact-id>
+                    </systemProperties>
+                </configuration>
+                -->
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>build</goal>
+                            <goal>generate-code</goal>
+                            <goal>generate-code-tests</goal>
+                            <goal>native-image-agent</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${compiler-plugin.version}</version>
+                <configuration>
+                    <parameters>true</parameters>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
