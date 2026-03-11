@@ -54,11 +54,6 @@
             <artifactId>quarkus-operator-sdk</artifactId>
         </dependency>
 
-        <dependency>
-            <groupId>io.quarkiverse.operatorsdk</groupId>
-            <artifactId>quarkus-operator-sdk-bundle-generator</artifactId>
-        </dependency>
-
         <!--
             Strimzi API: does NOT ship its own META-INF/jandex.idx.
             This is the dependency whose classes cannot be found in the
@@ -72,10 +67,17 @@
     </dependencies>
 
     <build>
+
+        <!--
+            This resources block in the pom.xml causes an error during build:
+            [error]: Build step io.quarkiverse.operatorsdk.deployment.OperatorSDKProcessor#buildReconcilerInfos threw
+            an exception: java.lang.IllegalStateException: 'io.strimzi.api.kafka.model.topic.KafkaTopic' has not been
+            found in the Jandex index so it cannot be introspected. Please index your classes with Jandex.
+        -->
         <resources>
             <resource>
                 <directory>src/main/bundle</directory>
-                <targetPath>${project.build.directory}/bundle/esd-operator</targetPath>
+                <targetPath>${project.build.directory}/bundle/my-operator</targetPath>
             </resource>
         </resources>
         <plugins>
